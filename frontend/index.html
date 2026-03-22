@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Money Mentor</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      body { background: #05111f; color: #e2ecf8; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
+      #root { height: 100vh; display: flex; flex-direction: column; }
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: #0b1929; }
+      ::-webkit-scrollbar-thumb { background: #1a3a5c; border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: #2a4a70; }
+      input[type="range"] { accent-color: #00e5a0; }
+      select option { background: #0b1929; color: #e2ecf8; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes dot { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+      @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
