@@ -105,4 +105,68 @@ function extractHealthScore(text) {
   return match ? parseInt(match[1]) : 70;
 }
 
+// ── GET /api/analysis/xirr ────────────────────────────
+// True XIRR via Gemini (accounts for exact SIP cashflow dates)
+router.get("/xirr", aiLimit, async (req, res) => {
+  try {
+    const portfolio = await Portfolio.findOne({ user: req.user._id });
+    if (!portfolio || !portfolio.funds.length) {
+      return res.status(400).json({ success: false, message: "Add funds to your portfolio first" });
+    }
+    const result = await gemini.calculateXIRR(portfolio);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error("XIRR error:", err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── GET /api/analysis/overlap ─────────────────────────
+// Fund overlap / illusion of diversification
+router.get("/overlap", aiLimit, async (req, res) => {
+  try {
+    const portfolio = await Portfolio.findOne({ user: req.user._id });
+    if (!portfolio || !portfolio.funds.length) {
+      return res.status(400).json({ success: false, message: "Add funds to your portfolio first" });
+    }
+    const result = await gemini.analyzeOverlap(portfolio);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error("Overlap error:", err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── GET /api/analysis/expense-drain ──────────────────
+// Expense ratio drain: regular vs direct plan cost
+router.get("/expense-drain", aiLimit, async (req, res) => {
+  try {
+    const portfolio = await Portfolio.findOne({ user: req.user._id });
+    if (!portfolio || !portfolio.funds.length) {
+      return res.status(400).json({ success: false, message: "Add funds to your portfolio first" });
+    }
+    const result = await gemini.analyzeExpenseDrain(portfolio);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error("Expense drain error:", err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ── GET /api/analysis/tax-harvest ────────────────────
+// Tax harvesting scanner: LTCL/STCL opportunities
+router.get("/tax-harvest", aiLimit, async (req, res) => {
+  try {
+    const portfolio = await Portfolio.findOne({ user: req.user._id });
+    if (!portfolio || !portfolio.funds.length) {
+      return res.status(400).json({ success: false, message: "Add funds to your portfolio first" });
+    }
+    const result = await gemini.findTaxHarvesting(portfolio);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error("Tax harvest error:", err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

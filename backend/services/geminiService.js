@@ -1,18 +1,44 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenAI } = require("@google/genai");
 
-let genAI = null;
+// ── Single AI client (lazy init) ──────────────────────────────────────────────
+let ai = null;
 
-const getClient = () => {
-  if (!genAI) {
+const getAI = () => {
+  if (!ai) {
     if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not set in .env");
-    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   }
-  return genAI;
+  return ai;
 };
 
-const getModel = () => getClient().getGenerativeModel({ model: "gemini-2.5-flash" });
+// ── Model name constants ───────────────────────────────────────────────────────
+// gemini-3.1-pro-preview    → deep reasoning, complex multi-section analysis
+// gemini-3-flash-preview    → fast, structured JSON tasks, chat, PDF parsing
+// gemini-2.5-flash-lite     → cheapest/fastest, simple one-shot tasks
+const MODELS = {
+  pro:   "gemini-3.1-pro-preview",
+  flash: "gemini-3-flash-preview",
+  lite:  "gemini-2.5-flash-lite",
+};
 
-// ── Shared prompt builder ────────────────────────────
+// ── Core helper: generate content with config ─────────────────────────────────
+const generate = async (model, contents, temperature = 0.2, maxOutputTokens = 2048, systemInstruction) => {
+  const config = { temperature, maxOutputTokens };
+  if (systemInstruction) config.systemInstruction = systemInstruction;
+  const response = await getAI().models.generateContent({ model, contents, config });
+  return response.text;
+};
+
+// ── JSON parse helper ─────────────────────────────────────────────────────────
+const parseJSON = (raw, opener = "[") => {
+  const cleaned = raw.replace(/```json|```/gi, "").trim();
+  const start   = cleaned.indexOf(opener);
+  const end     = opener === "[" ? cleaned.lastIndexOf("]") : cleaned.lastIndexOf("}");
+  if (start === -1) throw new Error(`Invalid JSON from Gemini — opener "${opener}" not found`);
+  return JSON.parse(cleaned.slice(start, end + 1));
+};
+
+// ── Shared portfolio context builder ──────────────────────────────────────────
 const buildPortfolioContext = (portfolio, user) => {
   const funds = portfolio.funds.map(f =>
     `• ${f.schemeName} (${f.category}) | Invested: ₹${Math.round(f.totalInvested).toLocaleString("en-IN")} | Value: ₹${Math.round(f.currentValue).toLocaleString("en-IN")} | XIRR: ${f.xirr?.toFixed(2) ?? "N/A"}% | Abs Return: ${f.absoluteReturn?.toFixed(2) ?? "N/A"}% | ER: ${f.expenseRatio}% | SIP: ₹${f.sipAmount}/mo`
@@ -41,12 +67,11 @@ ${user.goals?.length ? user.goals.map(g => `• ${g.name}: ₹${g.targetAmt?.toL
 };
 
 const gemini = {
-  // ── Full AI portfolio analysis ─────────────────────
-  analyzePortfolio: async (portfolio, user) => {
-    const model   = getModel();
-    const context = buildPortfolioContext(portfolio, user);
 
-    const prompt = `You are an expert Indian SEBI-registered financial advisor. Analyze this investor's mutual fund portfolio thoroughly.
+  // ── Full portfolio analysis — gemini-3.1-pro-preview (deepest reasoning) ────
+  analyzePortfolio: async (portfolio, user) => {
+    const context = buildPortfolioContext(portfolio, user);
+    const prompt  = `You are an expert Indian SEBI-registered financial advisor. Analyze this investor's mutual fund portfolio thoroughly.
 
 ${context}
 
@@ -70,37 +95,36 @@ Provide a comprehensive analysis with these exact sections. Be specific — use 
 
 Format each section with the header in CAPS followed by the content. Be direct, actionable, and use Indian financial context (₹, NSE, BSE, SEBI, AMFI). Mention that this is AI-generated analysis and not SEBI-registered advice.`;
 
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    return generate(MODELS.pro, prompt, 0.6, 4096);
   },
 
-  // ── Chat response with portfolio context ───────────
+  // ── Chat — gemini-3-flash-preview (conversational, balanced) ─────────────────
   chat: async (message, history, portfolio, user) => {
-    const model   = getModel();
     const context = buildPortfolioContext(portfolio, user);
-
     const systemInstruction = `You are Aryan, a warm and knowledgeable Indian personal finance AI assistant. You have deep expertise in mutual funds, SIPs, taxes, and Indian financial planning. Be conversational, use simple language, and reference the user's actual portfolio data when relevant. Always end with 2-3 actionable bullet points. Keep responses concise (3-4 paragraphs max). Use ₹, L (lakhs), Cr (crores). Add a brief disclaimer for specific investment recommendations.
 
 ${context}`;
 
-    const chat = model.startChat({
-      history: history.map(h => ({
+    const contents = [
+      ...history.map(h => ({
         role: h.role === "assistant" ? "model" : "user",
         parts: [{ text: h.content }],
       })),
-      systemInstruction,
-    });
+      { role: "user", parts: [{ text: message }] },
+    ];
 
-    const result = await chat.sendMessage(message);
-    return result.response.text();
+    const response = await getAI().models.generateContent({
+      model: MODELS.flash,
+      contents,
+      config: { temperature: 0.7, maxOutputTokens: 1024, systemInstruction },
+    });
+    return response.text;
   },
 
-  // ── Quick insights for dashboard ──────────────────
+  // ── Quick insights — gemini-2.5-flash-lite (fast, cheap, 4 cards) ────────────
   quickInsights: async (portfolio, user) => {
-    const model   = getModel();
     const context = buildPortfolioContext(portfolio, user);
-
-    const prompt = `You are a financial advisor. Based on this portfolio, generate exactly 4 short, actionable insights in JSON format.
+    const prompt  = `You are a financial advisor. Based on this portfolio, generate exactly 4 short, actionable insights in JSON format.
 
 ${context}
 
@@ -110,17 +134,12 @@ Return ONLY a valid JSON array — no markdown, no explanation:
   ...
 ]`;
 
-    const result = await model.generateContent(prompt);
-    const raw    = result.response.text().replace(/```json|```/gi, "").trim();
-    const start  = raw.indexOf("["), end = raw.lastIndexOf("]");
-    if (start === -1) throw new Error("Invalid JSON from Gemini");
-    return JSON.parse(raw.slice(start, end + 1));
+    const raw = await generate(MODELS.lite, prompt, 0.3, 512);
+    return parseJSON(raw, "[");
   },
 
-  // ── Parse CAMS/KFintech statement text ─────────────
+  // ── Parse CAMS statement — gemini-3-flash-preview (precise extraction) ────────
   parseStatement: async (text) => {
-    const model = getModel();
-
     const trimmed = text.length > 14000
       ? text.slice(0, 7500) + "\n...\n" + text.slice(-6000)
       : text;
@@ -146,16 +165,12 @@ ${trimmed}
 
 Return ONLY the JSON array.`;
 
-    const result = await model.generateContent(prompt);
-    const raw    = result.response.text().replace(/```json|```/gi, "").trim();
-    const start  = raw.indexOf("["), end = raw.lastIndexOf("]");
-    if (start === -1) throw new Error("Could not parse statement");
-    return JSON.parse(raw.slice(start, end + 1));
+    const raw = await generate(MODELS.flash, prompt, 0.1, 2048);
+    return parseJSON(raw, "[");
   },
 
-  // ── SIP recommendation ────────────────────────────
+  // ── SIP recommendation — gemini-2.5-flash-lite (simple, fast) ────────────────
   sipRecommendation: async (goal, riskProfile, currentSIP, income) => {
-    const model  = getModel();
     const prompt = `An Indian investor wants advice on SIP allocation.
 Goal: ${goal.name} — ₹${goal.targetAmt?.toLocaleString("en-IN")} by ${goal.targetDate ? new Date(goal.targetDate).getFullYear() : "N/A"}
 Risk profile: ${riskProfile}
@@ -164,8 +179,143 @@ Monthly income: ₹${income.toLocaleString("en-IN")}
 
 Give a specific SIP recommendation: which fund categories, what percentage allocation, and exact fund types (e.g., "40% Large Cap Index Fund, 30% Flexi Cap, 20% Mid Cap, 10% Debt"). Keep it concise, practical, and specific to Indian mutual funds. Max 150 words.`;
 
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    return generate(MODELS.lite, prompt, 0.4, 512);
+  },
+
+  // ── True XIRR — gemini-3-flash-preview (structured JSON, math-focused) ────────
+  calculateXIRR: async (portfolio) => {
+    const fundsData = portfolio.funds.map(f => ({
+      name: f.schemeName, category: f.category,
+      totalInvested: f.totalInvested, currentValue: f.currentValue,
+      sipAmount: f.sipAmount, startDate: f.startDate, expenseRatio: f.expenseRatio,
+      transactions: (f.transactions || []).map(t => ({
+        date: t.date, type: t.type, amount: t.amount, units: t.units, nav: t.nav,
+      })),
+    }));
+
+    const prompt = `You are an expert Indian financial analyst. Calculate the TRUE XIRR (Extended Internal Rate of Return) for each mutual fund using all transaction dates and amounts. XIRR accounts for exact SIP dates unlike simple CAGR.
+
+Portfolio Data:
+${JSON.stringify(fundsData, null, 2)}
+
+For each fund compute:
+1. True XIRR % (cashflow dates: negative for purchases, positive for redemptions, current value as final positive cashflow today)
+2. Compare against simple absolute return %
+3. Identify the XIRR gap (how much the app/platform overstates returns)
+
+Return ONLY valid JSON (no markdown):
+{
+  "portfolioXIRR": <number>,
+  "portfolioAbsoluteReturn": <number>,
+  "xirrGap": <number>,
+  "rupeeLostToGap": <number>,
+  "breakdown": [{"fund":"<name>","xirr":<n>,"absoluteReturn":<n>,"invested":<n>,"currentValue":<n>,"xirrVsAbsoluteDiff":<n>}],
+  "insight": "<1-2 sentence plain-English explanation>"
+}`;
+
+    const raw = await generate(MODELS.flash, prompt, 0.1, 1536);
+    return parseJSON(raw, "{");
+  },
+
+  // ── Fund Overlap — gemini-3-flash-preview (knowledge-based estimation) ────────
+  analyzeOverlap: async (portfolio) => {
+    const fundsData = portfolio.funds.map(f => ({
+      name: f.schemeName, category: f.category, currentValue: f.currentValue,
+      portfolioPct: portfolio.totalValue > 0
+        ? ((f.currentValue / portfolio.totalValue) * 100).toFixed(1) : 0,
+    }));
+
+    const prompt = `You are an expert Indian mutual fund analyst. Analyze the ILLUSION OF DIVERSIFICATION in this portfolio.
+
+Funds held:
+${JSON.stringify(fundsData, null, 2)}
+
+Based on known AMFI portfolio disclosures:
+1. Identify which stocks are likely held across MULTIPLE funds (HDFC Bank, Reliance, Infosys appear in most large/flexi cap funds)
+2. Estimate the portfolio-weighted concentration of top stocks
+3. Identify overlapping fund pairs
+4. Give a diversification score (0=highly concentrated, 100=truly diversified)
+
+Return ONLY valid JSON (no markdown):
+{
+  "diversificationScore": <0-100>,
+  "estimatedUniqueStocks": <number>,
+  "topHoldings": [{"stock":"<n>","estimatedPortfolioWeight":<n>,"funds":["<f1>","<f2>"]}],
+  "overlappingPairs": [{"fund1":"<n>","fund2":"<n>","estimatedOverlap":<0-100>,"reason":"<why>"}],
+  "verdict": "<1-sentence plain-English verdict>",
+  "recommendation": "<specific action to truly diversify>"
+}`;
+
+    const raw = await generate(MODELS.flash, prompt, 0.2, 1536);
+    return parseJSON(raw, "{");
+  },
+
+  // ── Expense Drain — gemini-3-flash-preview (deterministic calc) ──────────────
+  analyzeExpenseDrain: async (portfolio) => {
+    const fundsData = portfolio.funds.map(f => ({
+      name: f.schemeName, category: f.category,
+      currentValue: f.currentValue, expenseRatio: f.expenseRatio, investmentType: f.investmentType,
+    }));
+
+    const prompt = `You are an Indian mutual fund cost analyst. Calculate the EXPENSE RATIO DRAIN (money lost to fees vs switching to Direct plans).
+
+Funds held:
+${JSON.stringify(fundsData, null, 2)}
+
+For each fund:
+- Estimate if Regular (ER > 1.0% for equity = likely Regular) or Direct
+- Direct plan ER is typically ~0.8-1.2% lower than Regular
+- Annual drain = currentValue × (regularER - directER) / 100
+- 10-year drain: compound at 12% gross returns
+
+Return ONLY valid JSON (no markdown):
+{
+  "totalAnnualDrain": <number>,
+  "total10YearDrain": <number>,
+  "isOnRegularPlans": <boolean>,
+  "breakdown": [{"fund":"<n>","currentExpenseRatio":<n>,"estimatedDirectER":<n>,"planType":"Regular|Direct","annualDrain":<n>,"drain10Year":<n>}],
+  "verdict": "<1-sentence impact statement>",
+  "action": "<specific funds to switch to Direct and how>"
+}`;
+
+    const raw = await generate(MODELS.flash, prompt, 0.1, 1024);
+    return parseJSON(raw, "{");
+  },
+
+  // ── Tax Harvesting — gemini-3-flash-preview (rule-based, deterministic) ───────
+  findTaxHarvesting: async (portfolio) => {
+    const today     = new Date().toISOString().split("T")[0];
+    const fundsData = portfolio.funds.map(f => ({
+      name: f.schemeName, category: f.category,
+      currentValue: f.currentValue, totalInvested: f.totalInvested,
+      transactions: (f.transactions || []).map(t => ({
+        date: t.date, type: t.type, amount: t.amount, units: t.units, nav: t.nav,
+      })),
+    }));
+
+    const prompt = `You are an Indian tax-optimisation expert (FY 2024-25 rules). Scan this portfolio for TAX HARVESTING opportunities.
+
+Today: ${today}
+Portfolio:
+${JSON.stringify(fundsData, null, 2)}
+
+Indian Capital Gains rules:
+- Equity held > 1 year: LTCG @ 12.5% (above ₹1.25L yearly exemption)
+- Equity held ≤ 1 year: STCG @ 20%
+- Debt: STCG at slab rate
+Tax Harvesting: Book unrealised losses to offset gains. Redeem losing lots → reinvest after 30 days.
+
+Return ONLY valid JSON (no markdown):
+{
+  "totalTaxSaving": <number>,
+  "opportunities": [{"fund":"<n>","lossType":"LTCL|STCL","unrealisedLoss":<n>,"taxSaving":<n>,"action":"<e.g. Redeem ₹X and reinvest after 30 days>","urgency":"high|medium|low"}],
+  "financialYearDeadline": "2025-03-31",
+  "verdict": "<1-sentence summary>",
+  "disclaimer": "Tax harvesting involves transaction costs. Consult a CA before acting."
+}`;
+
+    const raw = await generate(MODELS.flash, prompt, 0.1, 1536);
+    return parseJSON(raw, "{");
   },
 };
 
