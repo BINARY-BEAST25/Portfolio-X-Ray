@@ -8,6 +8,11 @@ import { Spinner, Alert } from "../ui";
 const PDFJS_URL    = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
 const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
+const STOP_WORDS = new Set([
+  "fund", "plan", "option", "growth", "direct", "regular", "idcw", "dividend",
+  "reinvestment", "payout", "bonus", "scheme", "the"
+]);
+
 async function loadPdfJs() {
   if (window.pdfjsLib) return window.pdfjsLib;
   return new Promise((res, rej) => {
@@ -29,6 +34,75 @@ async function extractPdfText(file) {
     text += `\n[Page ${p}]\n` + tc.items.map(i => i.str).join(" ");
   }
   return text;
+}
+
+function normalizeSchemeName(name = "") {
+  return name
+    .toLowerCase()
+    .replace(/[-/(),.&]/g, " ")
+    .replace(/\b(direct|regular|growth|idcw|dividend|reinvestment|payout|bonus|option|plan)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getMeaningfulTokens(name = "") {
+  return normalizeSchemeName(name)
+    .split(" ")
+    .map(t => t.trim())
+    .filter(t => t.length > 2 && !STOP_WORDS.has(t));
+}
+
+function scoreSchemeMatch(sourceName, targetName) {
+  const sourceNorm = normalizeSchemeName(sourceName);
+  const targetNorm = normalizeSchemeName(targetName);
+
+  if (!sourceNorm || !targetNorm) return 0;
+  if (sourceNorm === targetNorm) return 100;
+  if (targetNorm.includes(sourceNorm) || sourceNorm.includes(targetNorm)) return 90;
+
+  const sourceTokens = getMeaningfulTokens(sourceName);
+  const targetTokens = new Set(getMeaningfulTokens(targetName));
+  if (!sourceTokens.length || !targetTokens.size) return 0;
+
+  let matched = 0;
+  let strongMatched = 0;
+  for (const token of sourceTokens) {
+    const exact = targetTokens.has(token);
+    const fuzzy = [...targetTokens].some(t => t.startsWith(token) || token.startsWith(t));
+    if (exact || fuzzy) matched += 1;
+    if (exact || token.length >= 5 && fuzzy) strongMatched += 1;
+  }
+
+  const coverage = matched / sourceTokens.length;
+  const strongCoverage = strongMatched / sourceTokens.length;
+  const amcBoost = sourceTokens[0] && targetNorm.includes(sourceTokens[0]) ? 0.08 : 0;
+
+  return Math.round((coverage * 70) + (strongCoverage * 20) + (amcBoost * 100));
+}
+
+function findBestSchemeMatch(sourceName, schemes = []) {
+  let best = null;
+  let bestScore = 0;
+
+  for (const scheme of schemes) {
+    const score = scoreSchemeMatch(sourceName, scheme.schemeName);
+    if (score > bestScore) {
+      best = scheme;
+      bestScore = score;
+    }
+  }
+
+  return bestScore >= 70 ? best : null;
+}
+
+function dedupeParsedFunds(funds = []) {
+  const seen = new Set();
+  return funds.filter((fund) => {
+    const key = `${normalizeSchemeName(fund.schemeName)}|${(fund.folio || "").trim()}`;
+    if (!fund.schemeName || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 const STEPS = [
@@ -76,10 +150,8 @@ export default function Upload() {
       const allFundsRes = await fundsAPI.all().catch(() => ({ data: { data: [] } }));
       const allSchemes  = allFundsRes.data.data || [];
 
-      const sanitised = rawFunds.map((f, i) => {
-        const match = allSchemes.find(a =>
-          a.schemeName.toLowerCase().includes((f.schemeName || "").toLowerCase().slice(0, 18))
-        );
+      const sanitised = dedupeParsedFunds(rawFunds).map((f, i) => {
+        const match = findBestSchemeMatch(f.schemeName, allSchemes);
         return {
           ...f,
           id:             Date.now() + i,
@@ -97,7 +169,7 @@ export default function Upload() {
             ? new Date(f.startDate).toISOString().split("T")[0]
             : new Date().toISOString().split("T")[0],
         };
-      }).filter(f => f.schemeName && f.currentValue > 0);
+      }).filter(f => f.schemeName && (f.currentValue > 0 || f.lumpSum > 0 || f.sipAmount > 0 || f.units > 0));
 
       if (!sanitised.length) throw new Error("No valid fund data extracted. Try adding funds manually.");
 
