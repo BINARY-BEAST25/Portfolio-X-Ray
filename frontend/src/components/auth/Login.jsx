@@ -32,9 +32,9 @@ export default function Login() {
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 36 }}>
           <div style={{ fontSize: 32, fontWeight: 900, color: T.green, letterSpacing: "-1px", marginBottom: 8 }}>
-            💰 AI Money Mentor
+            💰 Portfolio-X-Ray
           </div>
-          <div style={{ fontSize: 14, color: T.sub }}>Powered by Gemini AI · mfapi.in Live NAV</div>
+          <div style={{ fontSize: 14, color: T.sub }}></div>
         </div>
 
         {/* Card */}
