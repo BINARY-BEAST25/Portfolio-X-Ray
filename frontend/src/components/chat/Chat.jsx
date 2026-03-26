@@ -22,8 +22,8 @@ export default function Chat() {
   const hasFunds = (portfolio?.funds?.length || 0) > 0;
 
   const mkWelcome = () => hasFunds
-    ? `Namaste ${user?.name?.split(" ")[0] || ""}! 👋 I'm Aryan, your AI money mentor.\n\nI can see your portfolio of **${portfolio.funds.length} funds** worth **${fmtL(portfolio.totalValue)}**. I have your live NAV data, XIRR figures, and Gemini AI powering my analysis.\n\nWhat would you like to know?`
-    : `Namaste! 👋 I'm Aryan, your AI money mentor.\n\nYou haven't added any funds yet. Head to **Portfolio** to add funds manually, or **Upload** your CAMS/KFintech PDF — then I'll have your real numbers to advise on.\n\nFeel free to ask general MF / SIP / tax questions!`;
+    ? `Namaste ${user?.name?.split(" ")[0] || ""}! 👋 I'm Aryan, your Portfolio-X-Ray mentor.\n\nI can see your portfolio of **${portfolio.funds.length} funds** worth **${fmtL(portfolio.totalValue)}**. I have your live NAV data, XIRR figures, and Gemini AI powering my analysis.\n\nWhat would you like to know?`
+    : `Namaste! 👋 I'm Aryan, your Portfolio-X-Ray mentor.\n\nYou haven't added any funds yet. Head to **Portfolio** to add funds manually, or **Upload** your CAMS/KFintech PDF — then I'll have your real numbers to advise on.\n\nFeel free to ask general MF / SIP / tax questions!`;
 
   const [msgs,    setMsgs]  = useState([{ role: "assistant", content: mkWelcome() }]);
   const [input,   setInput] = useState("");
@@ -71,7 +71,7 @@ export default function Chat() {
       <div style={{ padding: "12px 20px", background: T.surf, borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
         <div style={{ width: 38, height: 38, borderRadius: "50%", background: T.green, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: "#000", fontSize: 16 }}>A</div>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Aryan — AI Money Mentor</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: T.text }}>Aryan — Portfolio-X-Ray Mentor</div>
           <div style={{ fontSize: 11, color: T.green }}>
             {hasFunds
               ? `● Gemini AI · ${portfolio.funds.length} funds loaded · ${fmtL(portfolio.totalValue)}`
