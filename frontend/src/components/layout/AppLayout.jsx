@@ -33,8 +33,8 @@ function Sidebar({ collapsed }) {
       <div style={{ padding: collapsed ? "18px 0" : "20px 18px 16px", borderBottom: `1px solid ${T.border}`, textAlign: collapsed ? "center" : "left" }}>
         {!collapsed ? (
           <>
-            <div style={{ fontSize: 15, fontWeight: 900, color: T.green, letterSpacing: "-0.5px" }}>AI Money Mentor</div>
-            <div style={{ fontSize: 10, color: T.sub, marginTop: 3 }}>Gemini AI · mfapi.in</div>
+            <div style={{ fontSize: 15, fontWeight: 900, color: T.green, letterSpacing: "-0.5px" }}>Portfolio-X-Ray</div>
+            <div style={{ fontSize: 10, color: T.sub, marginTop: 3 }}></div>
           </>
         ) : (
           <div style={{ fontSize: 20 }}>💰</div>
