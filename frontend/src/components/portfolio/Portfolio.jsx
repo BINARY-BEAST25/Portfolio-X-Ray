@@ -7,10 +7,10 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "rec
 
 // ── Fund search with live mfapi.in ───────────────────
 function FundSearch({ onSelect }) {
-  const [q, setQ]         = useState("");
+  const [q, setQ] = useState("");
   const [results, setRes] = useState([]);
-  const [open, setOpen]   = useState(false);
-  const [busy, setBusy]   = useState(false);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (q.length < 2) { setRes([]); return; }
@@ -57,22 +57,22 @@ function FundModal({ initial, onSave, onClose }) {
   // ✅ FIX 1: Removed duplicate keys (sipAmount, lumpSum, units, currentValue were
   //    declared twice — the second set was silently overriding the spread of `initial`).
   const [form, setForm] = useState({
-    schemeCode:     initial?.schemeCode     || "",
-    schemeName:     initial?.schemeName     || "",
-    category:       initial?.category       || "Large Cap",
-    startDate:      initial?.startDate      ? new Date(initial.startDate).toISOString().split("T")[0] : "",
+    schemeCode: initial?.schemeCode || "",
+    schemeName: initial?.schemeName || "",
+    category: initial?.category || "Large Cap",
+    startDate: initial?.startDate ? new Date(initial.startDate).toISOString().split("T")[0] : "",
     investmentType: initial?.investmentType || "sip",
-    sipAmount:      initial?.sipAmount      || "",
-    lumpSum:        initial?.lumpSum        || "",
-    units:          initial?.units          || "",
-    currentValue:   initial?.currentValue   || "",
-    expenseRatio:   initial?.expenseRatio   || "",
-    folio:          initial?.folio          || "",
-    useUnits:       true,
+    sipAmount: initial?.sipAmount || "",
+    lumpSum: initial?.lumpSum || "",
+    units: initial?.units || "",
+    currentValue: initial?.currentValue || "",
+    expenseRatio: initial?.expenseRatio || "",
+    folio: initial?.folio || "",
+    useUnits: true,
   });
   const [liveNAV, setNAV] = useState(null);
-  const [navLoad, setNL]  = useState(false);
-  const [errors,  setErr] = useState({});
+  const [navLoad, setNL] = useState(false);
+  const [errors, setErr] = useState({});
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
@@ -90,15 +90,15 @@ function FundModal({ initial, onSave, onClose }) {
   useEffect(() => {
     if (!form.schemeName) return;
     const n = form.schemeName.toLowerCase();
-    if (n.includes("large cap"))                                      set("category", "Large Cap");
-    else if (n.includes("mid cap"))                                   set("category", "Mid Cap");
-    else if (n.includes("small cap"))                                 set("category", "Small Cap");
-    else if (n.includes("flexi cap") || n.includes("flexicap"))      set("category", "Flexi Cap");
-    else if (n.includes("elss") || n.includes("tax saver"))          set("category", "ELSS");
+    if (n.includes("large cap")) set("category", "Large Cap");
+    else if (n.includes("mid cap")) set("category", "Mid Cap");
+    else if (n.includes("small cap")) set("category", "Small Cap");
+    else if (n.includes("flexi cap") || n.includes("flexicap")) set("category", "Flexi Cap");
+    else if (n.includes("elss") || n.includes("tax saver")) set("category", "ELSS");
     else if (n.includes("index") || n.includes("nifty") || n.includes("sensex")) set("category", "Index Fund");
     else if (n.includes("liquid") || n.includes("overnight") || n.includes("debt")) set("category", "Debt / Liquid");
-    else if (n.includes("hybrid") || n.includes("balanced"))         set("category", "Hybrid");
-    else if (n.includes("international") || n.includes("global"))    set("category", "International");
+    else if (n.includes("hybrid") || n.includes("balanced")) set("category", "Hybrid");
+    else if (n.includes("international") || n.includes("global")) set("category", "International");
   }, [form.schemeName]);
 
   const computedVal = form.useUnits && form.units && liveNAV
@@ -114,9 +114,9 @@ function FundModal({ initial, onSave, onClose }) {
     }
     if (!form.schemeName.trim()) e.schemeName = "Required";
     if (!form.startDate) e.startDate = "Required";
-    if ((form.investmentType === "lump" || form.investmentType === "both") && !Number(form.lumpSum))   e.lumpSum   = "Required";
-    if ((form.investmentType === "sip"  || form.investmentType === "both") && !Number(form.sipAmount)) e.sipAmount = "Required";
-    if (form.useUnits  && !Number(form.units))        e.units        = "Required";
+    if ((form.investmentType === "lump" || form.investmentType === "both") && !Number(form.lumpSum)) e.lumpSum = "Required";
+    if ((form.investmentType === "sip" || form.investmentType === "both") && !Number(form.sipAmount)) e.sipAmount = "Required";
+    if (form.useUnits && !Number(form.units)) e.units = "Required";
     if (!form.useUnits && !Number(form.currentValue)) e.currentValue = "Required";
     if (form.expenseRatio === "" || isNaN(Number(form.expenseRatio))) e.expenseRatio = "Required";
     setErr(e);
@@ -126,22 +126,22 @@ function FundModal({ initial, onSave, onClose }) {
   const handleSave = () => {
     if (!validate()) return;
     onSave({
-      schemeCode:     String(form.schemeCode).trim(),
-      schemeName:     form.schemeName,
-      category:       form.category,
-      startDate:      form.startDate,
+      schemeCode: String(form.schemeCode).trim(),
+      schemeName: form.schemeName,
+      category: form.category,
+      startDate: form.startDate,
       investmentType: form.investmentType,
-      sipAmount:      Number(form.sipAmount)    || 0,
-      lumpSum:        Number(form.lumpSum)      || 0,
-      units:          Number(form.units)        || 0,
-      currentValue:   computedVal,
-      expenseRatio:   Number(form.expenseRatio) || 0.5,
-      folio:          form.folio,
+      sipAmount: Number(form.sipAmount) || 0,
+      lumpSum: Number(form.lumpSum) || 0,
+      units: Number(form.units) || 0,
+      currentValue: computedVal,
+      expenseRatio: Number(form.expenseRatio) || 0.5,
+      folio: form.folio,
     });
   };
 
   const showL = form.investmentType === "lump" || form.investmentType === "both";
-  const showS = form.investmentType === "sip"  || form.investmentType === "both";
+  const showS = form.investmentType === "sip" || form.investmentType === "both";
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -230,7 +230,7 @@ function FundModal({ initial, onSave, onClose }) {
         <div style={{ padding: 14, background: T.surfHi, borderRadius: 10, marginBottom: 14 }}>
           <div style={{ fontSize: 12, color: T.sub, marginBottom: 10 }}>Current Value</div>
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            <button onClick={() => set("useUnits", true)}  style={{ ...sBtn(form.useUnits  ? "primary" : "ghost"), flex: 1, fontSize: 12, padding: "7px" }}>Units × Live NAV</button>
+            <button onClick={() => set("useUnits", true)} style={{ ...sBtn(form.useUnits ? "primary" : "ghost"), flex: 1, fontSize: 12, padding: "7px" }}>Units × Live NAV</button>
             <button onClick={() => set("useUnits", false)} style={{ ...sBtn(!form.useUnits ? "primary" : "ghost"), flex: 1, fontSize: 12, padding: "7px" }}>Enter Manually</button>
           </div>
           {form.useUnits ? (
@@ -281,13 +281,13 @@ function FundModal({ initial, onSave, onClose }) {
 
 // ── Single fund card with live NAV chart ─────────────
 function FundCard({ fund, totalValue, onEdit, onDelete }) {
-  const gain    = (fund.currentValue || 0) - (fund.totalInvested || 0);
-  const absPct  = fund.absoluteReturn;
-  const alloc   = totalValue > 0 ? (fund.currentValue / totalValue) * 100 : 0;
-  const col     = CAT_COLORS[fund.category] || T.green;
+  const gain = (fund.currentValue || 0) - (fund.totalInvested || 0);
+  const absPct = fund.absoluteReturn;
+  const alloc = totalValue > 0 ? (fund.currentValue / totalValue) * 100 : 0;
+  const col = CAT_COLORS[fund.category] || T.green;
   const [showHistory, setShowHistory] = useState(false);
-  const [history,     setHistory]     = useState([]);
-  const [histLoad,    setHL]          = useState(false);
+  const [history, setHistory] = useState([]);
+  const [histLoad, setHL] = useState(false);
 
   const loadHistory = async () => {
     if (history.length > 0) { setShowHistory(p => !p); return; }
@@ -310,21 +310,22 @@ function FundCard({ fund, totalValue, onEdit, onDelete }) {
             <span style={{ fontSize: 14, fontWeight: 700, color: T.text }}>{fund.schemeName}</span>
             <span style={sBadge(col)}>{fund.category}</span>
             {fund.schemeCode && <span style={sBadge(T.cyan)}>#{fund.schemeCode}</span>}
+            {fund.unmatched && <span style={{ ...sBadge(T.amber), cursor: "pointer" }} title="No mfapi.in match — live NAV unavailable. Click Edit to link a scheme.">⚠ Unmatched</span>}
             {fund.folio && <span style={{ fontSize: 11, color: T.sub }}>Folio: {fund.folio}</span>}
           </div>
 
           {/* Metrics */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: "8px 20px" }}>
             {[
-              ["Invested",      fmtL(fund.totalInvested),                            null],
-              ["Current Value", fmtL(fund.currentValue),                             T.text],
-              ["Gain / Loss",   fmtL(gain),                                          gain >= 0 ? T.green : T.red],
-              ["Abs Return",    absPct != null ? fmtPct(absPct) : "—",               absPct != null ? (absPct >= 0 ? T.green : T.red) : T.sub],
-              ["XIRR",          fund.xirr != null ? `${fund.xirr}%` : "N/A",         fund.xirr != null ? (fund.xirr >= 12 ? T.green : fund.xirr >= 8 ? T.amber : T.red) : T.sub],
-              ["Live NAV",      fund.lastNAV ? fmtNAV(fund.lastNAV) : "N/A",         T.cyan],
-              ["ER",            `${fund.expenseRatio}%`,                             fund.expenseRatio > 1 ? T.amber : T.sub],
-              ["Allocation",    `${alloc.toFixed(1)}%`,                              null],
-              ["SIP",           fund.sipAmount > 0 ? `₹${fund.sipAmount.toLocaleString("en-IN")}/mo` : "—", null],
+              ["Invested", fmtL(fund.totalInvested), null],
+              ["Current Value", fmtL(fund.currentValue), T.text],
+              ["Gain / Loss", fmtL(gain), gain >= 0 ? T.green : T.red],
+              ["Abs Return", absPct != null ? fmtPct(absPct) : "—", absPct != null ? (absPct >= 0 ? T.green : T.red) : T.sub],
+              ["XIRR", fund.xirr != null ? `${fund.xirr}%` : "N/A", fund.xirr != null ? (fund.xirr >= 12 ? T.green : fund.xirr >= 8 ? T.amber : T.red) : T.sub],
+              ["Live NAV", fund.lastNAV ? fmtNAV(fund.lastNAV) : "N/A", T.cyan],
+              ["ER", `${fund.expenseRatio}%`, fund.expenseRatio > 1 ? T.amber : T.sub],
+              ["Allocation", `${alloc.toFixed(1)}%`, null],
+              ["SIP", fund.sipAmount > 0 ? `₹${fund.sipAmount.toLocaleString("en-IN")}/mo` : "—", null],
             ].map(([k, v, c]) => (
               <div key={k}>
                 <div style={{ fontSize: 10, color: T.sub, marginBottom: 2 }}>{k}</div>
@@ -362,7 +363,7 @@ function FundCard({ fund, totalValue, onEdit, onDelete }) {
               {histLoad ? <Spinner size={12} /> : showHistory ? "▲ Hide" : "▼ NAV"}
             </button>
           )}
-          <button onClick={onEdit}   style={{ ...sBtn("ghost"),  padding: "4px 8px", fontSize: 11 }}>Edit</button>
+          <button onClick={onEdit} style={{ ...sBtn("ghost"), padding: "4px 8px", fontSize: 11 }}>Edit</button>
           <button onClick={onDelete} style={{ ...sBtn("danger"), padding: "4px 8px", fontSize: 11 }}>✕</button>
         </div>
       </div>
@@ -374,9 +375,9 @@ function FundCard({ fund, totalValue, onEdit, onDelete }) {
 export default function Portfolio() {
   const { portfolio, fetchPortfolio, addFund, updateFund, deleteFund, loading } = usePortfolio();
   const [showModal, setShowModal] = useState(false);
-  const [editFund,  setEditFund]  = useState(null);
-  const [saveBusy,  setSave]      = useState(false);
-  const [error,     setError]     = useState("");
+  const [editFund, setEditFund] = useState(null);
+  const [saveBusy, setSave] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => { fetchPortfolio(); }, [fetchPortfolio]);
 
@@ -404,7 +405,7 @@ export default function Portfolio() {
     try { await deleteFund(id); } catch (e) { setError(e.message); }
   };
 
-  const funds    = portfolio?.funds || [];
+  const funds = portfolio?.funds || [];
   const totalVal = portfolio?.totalValue || 0;
 
   return (
