@@ -18,6 +18,9 @@ const MODELS = {
   lite: "gemini-2.5-flash",
 };
 
+const STATEMENT_CHUNK_SIZE = 11000;
+const MAX_STATEMENT_CHUNKS = 8;
+
 const generate = async (
   model,
   contents,
@@ -41,6 +44,133 @@ const parseJSON = (raw, opener = "[") => {
   }
 
   return JSON.parse(cleaned.slice(start, end + 1));
+};
+
+const toText = (value) => String(value || "").trim();
+
+const toPositiveNumber = (value) => {
+  if (typeof value === "number") return Number.isFinite(value) && value > 0 ? value : 0;
+  const cleaned = String(value || "").replace(/[^\d.-]/g, "");
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+};
+
+const toISODate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) return date.toISOString().split("T")[0];
+
+  const m = String(value).match(/(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
+  if (!m) return null;
+  const day = m[1].padStart(2, "0");
+  const month = m[2].padStart(2, "0");
+  const year = m[3].length === 2 ? `20${m[3]}` : m[3];
+  const iso = `${year}-${month}-${day}`;
+  return Number.isNaN(new Date(iso).getTime()) ? null : iso;
+};
+
+const normalizeInvestmentType = (value) => {
+  const normalized = String(value || "").toLowerCase();
+  if (normalized === "sip" || normalized === "lump" || normalized === "both") return normalized;
+  return "sip";
+};
+
+const normalizeCategory = (value) => {
+  const allowed = new Set([
+    "Large Cap", "Mid Cap", "Small Cap", "Flexi Cap", "Multi Cap", "ELSS",
+    "Index Fund", "Sectoral", "Debt / Liquid", "Hybrid", "International", "Other",
+  ]);
+  return allowed.has(value) ? value : "Other";
+};
+
+const normalizeParsedFund = (fund) => {
+  const schemeName = toText(fund?.schemeName);
+  const currentValue = toPositiveNumber(fund?.currentValue);
+  const sipAmount = toPositiveNumber(fund?.sipAmount);
+  const lumpSum = toPositiveNumber(fund?.lumpSum);
+  const totalInvested = Math.max(toPositiveNumber(fund?.totalInvested), sipAmount, lumpSum);
+  const units = toPositiveNumber(fund?.units);
+  const expenseRatio = Math.min(5, Math.max(0, toPositiveNumber(fund?.expenseRatio)));
+
+  return {
+    schemeName,
+    category: normalizeCategory(fund?.category),
+    startDate: toISODate(fund?.startDate) || new Date().toISOString().split("T")[0],
+    investmentType: normalizeInvestmentType(fund?.investmentType),
+    sipAmount,
+    lumpSum,
+    currentValue,
+    totalInvested,
+    units,
+    folio: toText(fund?.folio),
+    expenseRatio: Number.isFinite(expenseRatio) ? expenseRatio : 0.5,
+  };
+};
+
+const normalizeFundKey = (schemeName = "", folio = "") =>
+  `${schemeName.toLowerCase().replace(/[^a-z0-9]/g, "")}|${folio.toLowerCase().replace(/[^a-z0-9]/g, "") || "na"}`;
+
+const mergeParsedFunds = (funds = []) => {
+  const byKey = new Map();
+
+  for (const rawFund of funds) {
+    const fund = normalizeParsedFund(rawFund);
+    if (!fund.schemeName) continue;
+
+    const key = normalizeFundKey(fund.schemeName, fund.folio);
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, fund);
+      continue;
+    }
+
+    byKey.set(key, {
+      ...existing,
+      currentValue: Math.max(existing.currentValue || 0, fund.currentValue || 0),
+      totalInvested: Math.max(existing.totalInvested || 0, fund.totalInvested || 0),
+      sipAmount: Math.max(existing.sipAmount || 0, fund.sipAmount || 0),
+      lumpSum: Math.max(existing.lumpSum || 0, fund.lumpSum || 0),
+      units: Math.max(existing.units || 0, fund.units || 0),
+      folio: existing.folio || fund.folio,
+      startDate: existing.startDate || fund.startDate,
+      category: existing.category !== "Other" ? existing.category : fund.category,
+    });
+  }
+
+  return [...byKey.values()].filter((f) => f.currentValue > 0 || f.totalInvested > 0 || f.sipAmount > 0 || f.lumpSum > 0);
+};
+
+const buildStatementChunks = (text) => {
+  const fullText = String(text || "").trim();
+  if (!fullText) return [];
+
+  const pages = fullText.split(/\n(?=\[Page\s+\d+\])/g).filter(Boolean);
+  const source = pages.length ? pages : [fullText];
+  const chunks = [];
+  let current = "";
+
+  for (const part of source) {
+    const candidate = current ? `${current}\n${part}` : part;
+    if (candidate.length <= STATEMENT_CHUNK_SIZE) {
+      current = candidate;
+      continue;
+    }
+
+    if (current) chunks.push(current);
+    if (part.length <= STATEMENT_CHUNK_SIZE) {
+      current = part;
+      continue;
+    }
+
+    for (let i = 0; i < part.length; i += STATEMENT_CHUNK_SIZE) {
+      chunks.push(part.slice(i, i + STATEMENT_CHUNK_SIZE));
+      if (chunks.length >= MAX_STATEMENT_CHUNKS) return chunks;
+    }
+    current = "";
+  }
+
+  if (current) chunks.push(current);
+  return chunks.slice(0, MAX_STATEMENT_CHUNKS);
 };
 
 const clampAmount = (value) => {
@@ -239,12 +369,19 @@ Return ONLY a valid JSON array:
   },
 
   parseStatement: async (text) => {
-    const trimmed = text.length > 14000
-      ? `${text.slice(0, 7500)}\n...\n${text.slice(-6000)}`
-      : text;
+    const chunks = buildStatementChunks(text);
+    if (!chunks.length) {
+      throw new Error("Statement parsing failed: empty statement text");
+    }
 
-    const prompt = `You are an expert Indian mutual fund statement parser for CAMS and KFintech CAS PDFs.
-Extract all mutual fund schemes and return ONLY a valid JSON array.
+    const parsedAcrossChunks = [];
+    const parseErrors = [];
+
+    for (let index = 0; index < chunks.length; index += 1) {
+      const chunk = chunks[index];
+      const prompt = `You are an expert Indian mutual fund statement parser for CAMS and KFintech CAS PDFs.
+Extract all mutual fund schemes present in this text chunk and return ONLY a valid JSON array.
+Do not invent values. If a field is missing, set it to 0 or an empty string.
 
 For each scheme extract:
 - schemeName
@@ -259,21 +396,31 @@ For each scheme extract:
 - folio
 - expenseRatio
 
-Statement text:
-${trimmed}
+Statement text chunk ${index + 1} of ${chunks.length}:
+${chunk}
 
 Return ONLY the JSON array.`;
 
-    try {
-      const raw = await generate(MODELS.flash, prompt, 0.1, 2048);
-      const parsed = parseJSON(raw, "[");
-      if (Array.isArray(parsed) && parsed.length) return parsed;
-      throw new Error("Gemini returned no funds");
-    } catch (err) {
-      const fallbackFunds = parseStatementHeuristically(text);
-      if (fallbackFunds.length) return fallbackFunds;
-      throw new Error(`Statement parsing failed: ${err.message}`);
+      try {
+        const raw = await generate(MODELS.flash, prompt, 0.05, 3072);
+        const parsed = parseJSON(raw, "[");
+        if (Array.isArray(parsed) && parsed.length) {
+          parsedAcrossChunks.push(...parsed);
+        }
+      } catch (err) {
+        parseErrors.push(`chunk-${index + 1}: ${err.message}`);
+      }
     }
+
+    const mergedFunds = mergeParsedFunds(parsedAcrossChunks);
+    if (mergedFunds.length) return mergedFunds;
+
+    if (process.env.ALLOW_HEURISTIC_STATEMENT_PARSE === "true") {
+      const fallbackFunds = mergeParsedFunds(parseStatementHeuristically(text));
+      if (fallbackFunds.length) return fallbackFunds;
+    }
+
+    throw new Error(`Statement parsing failed: no reliable funds extracted${parseErrors.length ? ` (${parseErrors.join("; ")})` : ""}`);
   },
 
   sipRecommendation: async (goal, riskProfile, currentSIP, income) => {

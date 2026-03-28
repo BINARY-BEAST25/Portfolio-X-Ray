@@ -7,6 +7,22 @@ import { Spinner, Alert } from "../ui";
 
 const PDFJS_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
 const PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const SCHEME_MATCH_THRESHOLD = 78;
+const STOP_WORDS = new Set([
+  "fund",
+  "plan",
+  "option",
+  "growth",
+  "direct",
+  "regular",
+  "idcw",
+  "dividend",
+  "reinvestment",
+  "payout",
+  "bonus",
+  "scheme",
+  "the",
+]);
 
 async function loadPdfJs() {
   if (window.pdfjsLib) return window.pdfjsLib;
@@ -35,6 +51,64 @@ function normalizeKey(value) {
   return String(value || "")
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
+}
+
+function normalizeSchemeName(name = "") {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/[-/(),.&]/g, " ")
+    .replace(/\b(direct|regular|growth|idcw|dividend|reinvestment|payout|bonus|option|plan)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getMeaningfulTokens(name = "") {
+  return normalizeSchemeName(name)
+    .split(" ")
+    .map((token) => token.trim())
+    .filter((token) => token.length > 2 && !STOP_WORDS.has(token));
+}
+
+function scoreSchemeMatch(sourceName, targetName) {
+  const sourceNorm = normalizeSchemeName(sourceName);
+  const targetNorm = normalizeSchemeName(targetName);
+
+  if (!sourceNorm || !targetNorm) return 0;
+  if (sourceNorm === targetNorm) return 100;
+  if (targetNorm.includes(sourceNorm) || sourceNorm.includes(targetNorm)) return 92;
+
+  const sourceTokens = getMeaningfulTokens(sourceName);
+  const targetTokens = new Set(getMeaningfulTokens(targetName));
+  if (!sourceTokens.length || !targetTokens.size) return 0;
+
+  let matched = 0;
+  let strongMatched = 0;
+  for (const token of sourceTokens) {
+    const exact = targetTokens.has(token);
+    const fuzzy = [...targetTokens].some((targetToken) => targetToken.startsWith(token) || token.startsWith(targetToken));
+    if (exact || fuzzy) matched += 1;
+    if (exact || (token.length >= 5 && fuzzy)) strongMatched += 1;
+  }
+
+  const coverage = matched / sourceTokens.length;
+  const strongCoverage = strongMatched / sourceTokens.length;
+  const firstTokenBoost = sourceTokens[0] && targetNorm.includes(sourceTokens[0]) ? 0.1 : 0;
+  return Math.round((coverage * 68) + (strongCoverage * 22) + (firstTokenBoost * 100));
+}
+
+function findBestSchemeMatch(sourceName, schemes = []) {
+  let best = null;
+  let bestScore = 0;
+
+  for (const scheme of schemes) {
+    const score = scoreSchemeMatch(sourceName, scheme.schemeName);
+    if (score > bestScore) {
+      best = scheme;
+      bestScore = score;
+    }
+  }
+
+  return bestScore >= SCHEME_MATCH_THRESHOLD ? best : null;
 }
 
 function dedupeParsedFunds(funds) {
@@ -175,57 +249,8 @@ export default function Upload() {
       const allFundsRes = await fundsAPI.all().catch(() => ({ data: { data: [] } }));
       const allSchemes = allFundsRes.data.data || [];
 
-      // Multi-strategy fuzzy matcher — tries progressively looser matches
-      function findMatch(name) {
-        if (!name || !allSchemes.length) return null;
-        const n = name.toLowerCase().trim();
-
-        // Strategy 1: exact substring match on first 30 chars
-        let m = allSchemes.find(a => a.schemeName.toLowerCase().includes(n.slice(0, 30)));
-        if (m) return m;
-
-        // Strategy 2: first 18 chars (original approach)
-        m = allSchemes.find(a => a.schemeName.toLowerCase().includes(n.slice(0, 18)));
-        if (m) return m;
-
-        // Strategy 3: all significant words (≥4 chars) must appear in scheme name
-        const words = n.split(/\s+/).filter(w => w.length >= 4);
-        if (words.length >= 2) {
-          m = allSchemes.find(a => {
-            const sn = a.schemeName.toLowerCase();
-            return words.every(w => sn.includes(w));
-          });
-          if (m) return m;
-        }
-
-        // Strategy 4: majority of significant words match
-        if (words.length >= 3) {
-          m = allSchemes.find(a => {
-            const sn = a.schemeName.toLowerCase();
-            const hits = words.filter(w => sn.includes(w)).length;
-            return hits >= Math.ceil(words.length * 0.6);
-          });
-          if (m) return m;
-        }
-
-        // Strategy 5: AMC name + fund type keyword
-        const amcKeywords = ["hdfc", "icici", "sbi", "axis", "mirae", "kotak", "nippon", "franklin", "dsp", "ppfas", "aditya", "birla", "uti", "tata", "canara", "invesco", "pgim", "bandhan", "edelweiss", "motilal", "quant", "whiteoak", "navi", "zerodha"];
-        const typeKeywords = ["large cap", "mid cap", "small cap", "flexi cap", "elss", "index", "liquid", "overnight", "hybrid", "balanced", "gilt", "arbitrage", "bluechip", "multicap", "multi cap", "focused", "value", "contra", "dividend"];
-        const amc = amcKeywords.find(k => n.includes(k));
-        const type = typeKeywords.find(k => n.includes(k));
-        if (amc && type) {
-          m = allSchemes.find(a => {
-            const sn = a.schemeName.toLowerCase();
-            return sn.includes(amc) && sn.includes(type);
-          });
-          if (m) return m;
-        }
-
-        return null;
-      }
-
       const sanitised = rawFunds.map((f, i) => {
-        const match = findMatch(f.schemeName);
+        const match = findBestSchemeMatch(f.schemeName, allSchemes);
         return {
           ...f,
           id: Date.now() + i,
