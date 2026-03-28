@@ -5,6 +5,7 @@ import { PortfolioProvider } from "./context/PortfolioContext";
 import Login     from "./components/auth/Login";
 import Register  from "./components/auth/Register";
 import Profile   from "./components/auth/Profile";
+import Landing   from "./components/landing/Landing";
 import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./components/portfolio/Dashboard";
 import Portfolio from "./components/portfolio/Portfolio";
@@ -35,35 +36,38 @@ function ProtectedRoute({ children }) {
 function PublicRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return null;
-  return user ? <Navigate to="/" replace /> : children;
+  return user ? <Navigate to="/app" replace /> : children;
 }
 
 export default function App() {
   return (
     <Routes>
       {/* Public */}
+      <Route path="/"         element={<Landing />} />
       <Route path="/login"    element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
 
       {/* Protected: all inside PortfolioProvider + AppLayout */}
-      <Route path="/*" element={
+      <Route path="/app/*" element={
         <ProtectedRoute>
           <PortfolioProvider>
             <AppLayout>
               <Routes>
-                <Route path="/"          element={<Dashboard />} />
-                <Route path="/upload"    element={<Upload />} />
-                <Route path="/portfolio" element={<Portfolio />} />
-                <Route path="/analysis"  element={<Analysis />} />
-                <Route path="/chat"      element={<Chat />} />
-                <Route path="/planner"   element={<Planner />} />
-                <Route path="/profile"   element={<Profile />} />
-                <Route path="*"          element={<Navigate to="/" replace />} />
+                <Route index             element={<Dashboard />} />
+                <Route path="upload"     element={<Upload />} />
+                <Route path="portfolio"  element={<Portfolio />} />
+                <Route path="analysis"   element={<Analysis />} />
+                <Route path="chat"       element={<Chat />} />
+                <Route path="planner"    element={<Planner />} />
+                <Route path="profile"    element={<Profile />} />
+                <Route path="*"          element={<Navigate to="/app" replace />} />
               </Routes>
             </AppLayout>
           </PortfolioProvider>
         </ProtectedRoute>
       } />
+
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

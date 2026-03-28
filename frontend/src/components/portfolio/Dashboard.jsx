@@ -45,12 +45,11 @@ export default function Dashboard() {
   const insightColors = { warning: T.amber, info: T.blue, success: T.green, danger: T.red };
 
   return (
-    <div style={{ padding: "24px 28px" }}>
+    <div style={{ padding: "16px clamp(12px, 4vw, 28px)" }}>
       {/* Welcome */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 22, fontWeight: 800, color: T.text }}>
-          Good morning, {user?.name?.split(" ")[0]} 👋
-        </div>
+          Good morning, {user?.name?.split(" ")[0]}</div>
         <div style={{ fontSize: 13, color: T.sub, marginTop: 4 }}>
           {hasData
             ? `Your portfolio of ${p.funds.length} funds is live. NAV data from mfapi.in.`
@@ -60,20 +59,20 @@ export default function Dashboard() {
 
       {!hasData ? (
         <div style={{ ...sCard(), textAlign: "center", padding: "56px 24px", border: `1px solid ${T.greenBd}` }}>
-          <div style={{ fontSize: 52, marginBottom: 16 }}>📈</div>
+          <div style={{ fontSize: 28, marginBottom: 16, color: T.green, fontWeight: 800 }}>PX</div>
           <div style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 8 }}>Start tracking your portfolio</div>
           <div style={{ fontSize: 13, color: T.sub, maxWidth: 400, margin: "0 auto 24px", lineHeight: 1.7 }}>
             Upload a CAMS or KFintech statement, or add funds manually. Gemini AI will analyze your portfolio instantly.
           </div>
           <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-            <Link to="/upload" style={{ background: T.green, border: "none", borderRadius: 8, padding: "10px 22px", color: "#000", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>Upload Statement</Link>
-            <Link to="/portfolio" style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 22px", color: T.text, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>Add Manually</Link>
+            <Link to="/app/upload" style={{ background: T.green, border: "none", borderRadius: 8, padding: "10px 22px", color: "#000", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>Upload Statement</Link>
+            <Link to="/app/portfolio" style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, padding: "10px 22px", color: T.text, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>Add Manually</Link>
           </div>
         </div>
       ) : (
         <>
           {/* Metric grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 20 }}>
             <MetricCard label="Portfolio Value"  value={fmtL(p.totalValue)}    sub={`Invested: ${fmtL(p.totalInvested)}`} />
             <MetricCard label="Total Gain / Loss" value={fmtL(p.totalGain)}    sub={fmtPct(p.absoluteReturn)}  color={p.totalGain >= 0 ? T.green : T.red} />
             <MetricCard label="Monthly SIPs"      value={`₹${(p.funds.reduce((s, f) => s + (f.sipAmount || 0), 0)).toLocaleString("en-IN")}`} sub="active SIPs" />
@@ -81,7 +80,7 @@ export default function Dashboard() {
           </div>
 
           {/* Charts row */}
-          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16, marginBottom: 20 }}>
             <div style={sCard()}>
               <div style={{ fontSize: 11, color: T.sub, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 14 }}>Projected Growth (24 months)</div>
               <ResponsiveContainer width="100%" height={200}>
@@ -128,19 +127,19 @@ export default function Dashboard() {
               <div style={{ fontSize: 11, color: T.sub, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.6px" }}>
                 Gemini AI Insights
               </div>
-              <Link to="/analysis" style={{ fontSize: 12, color: T.green, textDecoration: "none" }}>Full Analysis →</Link>
+              <Link to="/app/analysis" style={{ fontSize: 12, color: T.green, textDecoration: "none" }}>Full Analysis →</Link>
             </div>
             {aiError && <Alert type="error">{aiError}</Alert>}
             {aiLoading ? (
               <div style={{ display: "flex", gap: 10, alignItems: "center", color: T.sub, fontSize: 13 }}><Spinner size={16} /> Gemini is analyzing your portfolio…</div>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
                 {insights.map((ins, i) => {
                   const c = insightColors[ins.type] || T.blue;
                   return (
                     <div key={i} style={{ background: `${c}10`, border: `1px solid ${c}30`, borderRadius: 10, padding: "14px 16px" }}>
                       <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
-                        <span style={{ fontSize: 18 }}>{ins.icon}</span>
+                        <span style={{ width: 10, height: 10, borderRadius: "50%", background: c, marginTop: 4, flexShrink: 0 }} />
                         <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{ins.title}</span>
                       </div>
                       <div style={{ fontSize: 12, color: T.sub, lineHeight: 1.6 }}>{ins.body}</div>
@@ -155,3 +154,5 @@ export default function Dashboard() {
     </div>
   );
 }
+
+

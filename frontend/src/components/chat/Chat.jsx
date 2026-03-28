@@ -22,8 +22,8 @@ export default function Chat() {
   const hasFunds = (portfolio?.funds?.length || 0) > 0;
 
   const mkWelcome = () => hasFunds
-    ? `Namaste ${user?.name?.split(" ")[0] || ""}! 👋 I'm Aryan, your Portfolio-X-Ray mentor.\n\nI can see your portfolio of **${portfolio.funds.length} funds** worth **${fmtL(portfolio.totalValue)}**. I have your live NAV data, XIRR figures, and Gemini AI powering my analysis.\n\nWhat would you like to know?`
-    : `Namaste! 👋 I'm Aryan, your Portfolio-X-Ray mentor.\n\nYou haven't added any funds yet. Head to **Portfolio** to add funds manually, or **Upload** your CAMS/KFintech PDF — then I'll have your real numbers to advise on.\n\nFeel free to ask general MF / SIP / tax questions!`;
+    ? `Namaste ${user?.name?.split(" ")[0] || ""}! I'm Aryan, your Portfolio-X-Ray mentor.\n\nI can see your portfolio of **${portfolio.funds.length} funds** worth **${fmtL(portfolio.totalValue)}**. I have your live NAV data, XIRR figures, and Gemini AI powering my analysis.\n\nWhat would you like to know?`
+    : `Namaste! I'm Aryan, your Portfolio-X-Ray mentor.\n\nYou haven't added any funds yet. Head to **Portfolio** to add funds manually, or **Upload** your CAMS/KFintech PDF — then I'll have your real numbers to advise on.\n\nFeel free to ask general MF / SIP / tax questions!`;
 
   const [msgs,    setMsgs]  = useState([{ role: "assistant", content: mkWelcome() }]);
   const [input,   setInput] = useState("");
@@ -145,3 +145,4 @@ export default function Chat() {
     </div>
   );
 }
+

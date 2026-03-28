@@ -338,7 +338,7 @@ export default function Upload() {
 
     // Stay on page so user can read the warning; navigate only when clean
     if (warnings.length) { setImpErr(warnings.join(" · ")); setImport(false); return; }
-    navigate("/portfolio");
+    navigate("/app/portfolio");
   };
 
   const pct = Math.round(step / (STEPS.length - 1) * 100);
@@ -371,7 +371,7 @@ export default function Upload() {
       {importErr && (
         <Alert type="error" onClose={() => setImpErr("")}>
           <div style={{ marginBottom: 8 }}>{importErr}</div>
-          <button style={sBtn("primary")} onClick={() => navigate("/portfolio")}>Go to Portfolio →</button>
+          <button style={sBtn("primary")} onClick={() => navigate("/app/portfolio")}>Go to Portfolio →</button>
         </Alert>
       )}
 
@@ -508,7 +508,7 @@ export default function Upload() {
           <div style={{ fontSize: 13, color: "#fca5a5", lineHeight: 1.7, marginBottom: 16 }}>{errMsg}</div>
           <div style={{ display: "flex", gap: 10 }}>
             <button style={sBtn("primary")} onClick={() => { setStage("idle"); setStep(0); }}>Try Again</button>
-            <button style={sBtn("ghost")} onClick={() => navigate("/portfolio")}>Add Manually</button>
+            <button style={sBtn("ghost")} onClick={() => navigate("/app/portfolio")}>Add Manually</button>
           </div>
         </div>
       )}

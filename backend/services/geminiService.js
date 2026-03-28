@@ -12,10 +12,20 @@ const getAI = () => {
   return ai;
 };
 
+const MODEL_LIBRARY = {
+  // Fastest and budget-friendly for high-volume/simple tasks
+  flashLite25: "gemini-2.5-flash-lite",
+  // Standard workhorse for reasoning-heavy tasks
+  flash25: "gemini-2.5-flash",
+  // New high-efficiency model designed for scale
+  flashLite31: "gemini-3.1-flash-lite",
+};
+
+// Per-use assignment so all requested models are used.
 const MODELS = {
-  pro: "gemini-2.5-flash",
-  flash: "gemini-2.5-flash",
-  lite: "gemini-2.5-flash",
+  pro: MODEL_LIBRARY.flash25,
+  flash: MODEL_LIBRARY.flashLite31,
+  lite: MODEL_LIBRARY.flashLite25,
 };
 
 const STATEMENT_CHUNK_SIZE = 11000;

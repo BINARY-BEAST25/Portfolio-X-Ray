@@ -21,7 +21,7 @@ export default function Register() {
     setLoading(true);
     try {
       await register(form.name, form.email, form.password);
-      navigate("/");
+      navigate("/app");
     } catch (err) {
       setError(err.message || "Registration failed. Try again.");
     } finally {
@@ -33,7 +33,7 @@ export default function Register() {
     <div style={{ minHeight: "100vh", background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div style={{ width: "100%", maxWidth: 440 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontSize: 30, fontWeight: 900, color: T.green, letterSpacing: "-1px", marginBottom: 8 }}>💰 AI Money Mentor</div>
+          <div style={{ fontSize: 30, fontWeight: 900, color: T.green, letterSpacing: "-1px", marginBottom: 8 }}>Portfolio-X-Ray</div>
           <div style={{ fontSize: 14, color: T.sub }}>Start tracking your mutual fund portfolio for free</div>
         </div>
 
@@ -83,3 +83,4 @@ export default function Register() {
     </div>
   );
 }
+

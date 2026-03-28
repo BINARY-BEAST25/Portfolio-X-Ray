@@ -18,7 +18,7 @@ export default function Login() {
     setError(""); setLoading(true);
     try {
       await login(form.email, form.password);
-      navigate("/");
+      navigate("/app");
     } catch (err) {
       setError(err.message || "Login failed. Check your credentials.");
     } finally {
@@ -31,9 +31,7 @@ export default function Login() {
       <div style={{ width: "100%", maxWidth: 420 }}>
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 36 }}>
-          <div style={{ fontSize: 32, fontWeight: 900, color: T.green, letterSpacing: "-1px", marginBottom: 8 }}>
-            💰 Portfolio-X-Ray
-          </div>
+          <div style={{ fontSize: 32, fontWeight: 900, color: T.green, letterSpacing: "-1px", marginBottom: 8 }}>Portfolio-X-Ray</div>
           <div style={{ fontSize: 14, color: T.sub }}></div>
         </div>
 
@@ -76,3 +74,4 @@ export default function Login() {
     </div>
   );
 }
+
