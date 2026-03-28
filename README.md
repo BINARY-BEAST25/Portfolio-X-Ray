@@ -1,165 +1,190 @@
-# 💰 AI Money Mentor — Full MERN Stack
+# Portfolio-X-Ray
 
-A production-grade Indian mutual fund portfolio tracker powered by **Gemini AI** and **mfapi.in** live NAV data.
+Portfolio-X-Ray is a full-stack mutual fund portfolio analyzer for Indian investors.
+It combines live NAV data (`mfapi.in`), deterministic portfolio math (invested value, returns, XIRR), and Gemini-powered insights/chat over your actual holdings.
 
----
+## Current Status
+
+- Landing page at `/` and authenticated app at `/app/*`
+- Portfolio ingestion from manual entry and statement parsing (CAMS/KFintech text extraction flow)
+- Live NAV refresh and portfolio metrics
+- AI analysis modules (full analysis, quick insights, chat, XIRR deep analysis, overlap, expense drain, tax harvesting)
+- Deployed architecture supported on Vercel (frontend + backend)
 
 ## Tech Stack
 
-| Layer     | Technology                          |
-|-----------|-------------------------------------|
-| Frontend  | React 18 + Vite + React Router v6   |
-| Backend   | Node.js + Express.js                |
-| Database  | MongoDB + Mongoose                  |
-| AI        | Google Gemini 1.5 Flash             |
-| MF Data   | mfapi.in (free, no key needed)      |
-| Auth      | JWT + bcryptjs                      |
-| Charts    | Recharts                            |
+- Frontend: React 18, Vite, React Router v6, Recharts
+- Backend: Node.js, Express, Mongoose
+- Database: MongoDB
+- AI: Google Gemini via `@google/genai`
+- Market Data: `mfapi.in` (free, no API key)
+- Auth: JWT + bcryptjs
 
----
+## Gemini Model Allocation (Hardcoded)
+
+The backend uses multiple Gemini models by responsibility in `backend/services/geminiService.js`:
+
+- `gemini-2.5-flash-lite`: quick insights, SIP recommendation
+- `gemini-2.5-flash`: full portfolio analysis (reasoning-heavy)
+- `gemini-3.1-flash-lite`: chat, statement parsing, XIRR/overlap/expense/tax JSON analyses
 
 ## Project Structure
 
-```
-ai-money-mentor/
-├── backend/
-│   ├── config/db.js              # MongoDB connection
-│   ├── models/
-│   │   ├── User.js               # User schema (bcrypt, JWT)
-│   │   └── Portfolio.js          # Portfolio + Fund holdings
-│   ├── middleware/auth.js        # JWT protect middleware
-│   ├── routes/
-│   │   ├── auth.js               # register, login, me, profile, password
-│   │   ├── portfolio.js          # CRUD + live NAV refresh + XIRR
-│   │   ├── funds.js              # mfapi.in proxy endpoints
-│   │   └── analysis.js          # Gemini AI endpoints
-│   ├── services/
-│   │   ├── mfapiService.js      # mfapi.in with in-memory cache
-│   │   └── geminiService.js     # Gemini 1.5 Flash integration
-│   ├── server.js                 # Express app entry point
-│   └── .env.example             # Environment variables template
-└── frontend/
-    ├── src/
-    │   ├── context/
-    │   │   ├── AuthContext.jsx   # Global auth state
-    │   │   └── PortfolioContext.jsx
-    │   ├── services/api.js       # Axios instance + all API methods
-    │   ├── utils/helpers.js      # Formatters + financial math + tokens
-    │   ├── components/
-    │   │   ├── auth/             # Login, Register, Profile
-    │   │   ├── layout/           # Sidebar, AppLayout
-    │   │   ├── ui/               # Spinner, MetricCard, TabBar, etc.
-    │   │   ├── portfolio/        # Dashboard, Portfolio (with FundCard)
-    │   │   ├── analysis/         # Full Gemini X-Ray analysis
-    │   │   ├── chat/             # Gemini AI conversational chat
-    │   │   ├── planner/          # SIP, Goal, Retirement, Emergency
-    │   │   └── upload/           # PDF.js + Gemini parse + mfapi match
-    │   └── App.jsx               # Routes + Protected routes
-    └── vite.config.js
+```text
+Portfolio-X-Ray/
+|- api/
+|  |- index.js                  # Vercel serverless entry (exports backend app)
+|- backend/
+|  |- server.js                 # Express app setup
+|  |- config/db.js              # MongoDB connection
+|  |- middleware/auth.js        # JWT auth middleware
+|  |- models/                   # User, Portfolio schemas
+|  |- routes/                   # auth, portfolio, funds, analysis
+|  |- services/                 # geminiService, mfapiService
+|- docs/
+|  |- IMPLEMENTATION_AUDIT.md
+|- frontend/
+|  |- public/                   # favicon and static assets
+|  |- src/
+|     |- components/
+|     |  |- landing/            # public landing page
+|     |  |- auth/
+|     |  |- layout/
+|     |  |- portfolio/
+|     |  |- analysis/
+|     |  |- chat/
+|     |  |- planner/
+|     |  |- upload/
+|     |- context/
+|     |- services/api.js
+|     |- App.jsx                # routes (`/`, `/login`, `/register`, `/app/*`)
+|- vercel.json
 ```
 
----
+## Key Routes
 
-## Quick Start
+Frontend:
 
-### 1. Clone & install
+- `/` -> Landing page
+- `/login`, `/register`
+- `/app` -> Dashboard
+- `/app/upload`, `/app/portfolio`, `/app/analysis`, `/app/chat`, `/app/planner`, `/app/profile`
+
+Backend:
+
+- `GET /api/health`
+- Auth: `/api/auth/*`
+- Portfolio: `/api/portfolio/*`
+- Funds: `/api/funds/*`
+- Analysis: `/api/analysis/*`
+
+## Main API Endpoints
+
+Auth:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+- `PUT /api/auth/profile`
+- `PUT /api/auth/password`
+
+Portfolio:
+
+- `GET /api/portfolio`
+- `GET /api/portfolio/refresh`
+- `POST /api/portfolio/fund`
+- `PUT /api/portfolio/fund/:fundId`
+- `DELETE /api/portfolio/fund/:fundId`
+
+Funds (mfapi proxy):
+
+- `GET /api/funds/search?q=`
+- `GET /api/funds/all`
+- `GET /api/funds/:code`
+- `GET /api/funds/:code/nav`
+- `GET /api/funds/:code/history?days=365`
+- `POST /api/funds/bulk-nav`
+
+Analysis:
+
+- `GET /api/analysis/full`
+- `GET /api/analysis/insights`
+- `POST /api/analysis/chat`
+- `POST /api/analysis/parse-statement`
+- `POST /api/analysis/sip-recommendation`
+- `GET /api/analysis/xirr`
+- `GET /api/analysis/overlap`
+- `GET /api/analysis/expense-drain`
+- `GET /api/analysis/tax-harvest`
+
+## Local Development
+
+### 1. Prerequisites
+
+- Node.js 18+
+- MongoDB connection string (local or Atlas)
+- Gemini API key
+
+### 2. Backend setup
 
 ```bash
-# Backend
 cd backend
 npm install
 cp .env.example .env
-# Fill in MONGO_URI and GEMINI_API_KEY in .env
-
-# Frontend
-cd ../frontend
-npm install
 ```
 
-### 2. Get API Keys
+Set values in `backend/.env`:
 
-**Gemini API Key (Free)**
-1. Go to https://aistudio.google.com/app/apikey
-2. Create a new API key
-3. Add to `backend/.env` as `GEMINI_API_KEY=...`
+- `MONGO_URI`
+- `JWT_SECRET`
+- `GEMINI_API_KEY`
+- `CLIENT_URL` (for CORS, local frontend URL)
 
-**MongoDB**
-- Local: install MongoDB and use `mongodb://localhost:27017/ai_money_mentor`
-- Atlas (free tier): https://mongodb.com/atlas → Get connection string
-
-**mfapi.in** — No key needed. Free, open API.
-
-### 3. Run
+Run backend:
 
 ```bash
-# Terminal 1 – Backend (http://localhost:5000)
-cd backend
-npm run dev
-
-# Terminal 2 – Frontend (http://localhost:5173)
-cd frontend
 npm run dev
 ```
 
-Open http://localhost:5173
+### 3. Frontend setup
 
----
+```bash
+cd frontend
+npm install
+cp .env.example .env.local
+npm run dev
+```
 
-## API Endpoints
+Default local URLs:
 
-### Auth
-| Method | URL                    | Description         | Auth |
-|--------|------------------------|---------------------|------|
-| POST   | /api/auth/register     | Create account      | No   |
-| POST   | /api/auth/login        | Sign in             | No   |
-| GET    | /api/auth/me           | Get current user    | Yes  |
-| PUT    | /api/auth/profile      | Update profile      | Yes  |
-| PUT    | /api/auth/password     | Change password     | Yes  |
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:5000`
 
-### Portfolio
-| Method | URL                          | Description                   | Auth |
-|--------|------------------------------|-------------------------------|------|
-| GET    | /api/portfolio               | Get user's portfolio          | Yes  |
-| GET    | /api/portfolio/refresh       | Refresh live NAVs             | Yes  |
-| POST   | /api/portfolio/fund          | Add a fund                    | Yes  |
-| PUT    | /api/portfolio/fund/:id      | Update a fund                 | Yes  |
-| DELETE | /api/portfolio/fund/:id      | Delete a fund                 | Yes  |
+## Deployment Notes (Vercel)
 
-### Funds (mfapi.in proxy)
-| Method | URL                          | Description                   |
-|--------|------------------------------|-------------------------------|
-| GET    | /api/funds/search?q=mirae    | Search fund names             |
-| GET    | /api/funds/:code             | Full scheme + history         |
-| GET    | /api/funds/:code/nav         | Live NAV only                 |
-| GET    | /api/funds/:code/history     | Historical NAV                |
-| POST   | /api/funds/bulk-nav          | Multiple NAVs at once         |
+This repo includes:
 
-### Analysis (Gemini AI)
-| Method | URL                              | Description                     |
-|--------|----------------------------------|---------------------------------|
-| GET    | /api/analysis/full               | Full portfolio analysis         |
-| GET    | /api/analysis/insights           | 4 quick insight cards           |
-| POST   | /api/analysis/chat               | Conversational AI chat          |
-| POST   | /api/analysis/parse-statement    | Parse CAMS/KFintech PDF text    |
-| POST   | /api/analysis/sip-recommendation | SIP advice for a specific goal  |
+- `vercel.json` for SPA rewrite + API routing
+- `api/index.js` to expose Express app as serverless function
 
----
+Set backend environment variables in Vercel project settings:
 
-## Features
+- `MONGO_URI`
+- `JWT_SECRET`
+- `GEMINI_API_KEY`
+- `CLIENT_URL` (your frontend domain)
 
-- **JWT Authentication** — Register, login, protected routes, password change
-- **Live NAV** — Every fund fetches real-time NAV from mfapi.in
-- **Real XIRR** — Newton-Raphson calculation from actual cashflow dates
-- **Gemini AI Analysis** — Full portfolio X-Ray: health score, overlap, ER drag, rebalancing plan
-- **Gemini Chat** — Conversational advisor with your real portfolio injected as context
-- **PDF Upload** — PDF.js browser extraction + Gemini parsing + mfapi.in scheme matching
-- **Goal Planner** — SIP calculator, reverse SIP, retirement corpus, emergency fund
-- **Profile** — Risk profile, income/expenses, goals (all fed to Gemini for personalisation)
+Set frontend environment variable:
 
----
+- `VITE_API_URL` (your deployed backend URL, if not using same-domain API route)
 
-## Notes
+## Data and Parsing Notes
 
-- Gemini API has a free tier (60 req/min) — sufficient for personal use
-- mfapi.in is rate-limited; backend caches responses for 10 minutes
-- This is **not SEBI-registered investment advice**. For regulated advice, consult a SEBI-RIA.
+- Statement parsing (`/api/analysis/parse-statement`) is designed for CAMS/KFintech statement text extracted by the upload flow.
+- Parsed funds are normalized and de-duplicated before insertion.
+- Uploading/parsing does not silently replace all data; portfolio updates happen through explicit API operations.
+
+## Disclaimer
+
+Portfolio-X-Ray provides AI-generated insights for education and decision support.
+It is not SEBI-registered investment advice. Consult a SEBI-registered advisor/CA for regulated advice.

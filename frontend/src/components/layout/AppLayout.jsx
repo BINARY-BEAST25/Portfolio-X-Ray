@@ -6,14 +6,89 @@ import { T, fmtL, fmtPct } from "../../utils/helpers";
 import { Spinner } from "../ui";
 
 const NAV = [
-  { to: "/app", icon: "DB", label: "Dashboard" },
-  { to: "/app/upload", icon: "UP", label: "Upload PDF", badge: "NEW" },
-  { to: "/app/portfolio", icon: "PF", label: "Portfolio" },
-  { to: "/app/analysis", icon: "AN", label: "Analysis" },
-  { to: "/app/chat", icon: "AI", label: "AI Mentor" },
-  { to: "/app/planner", icon: "PL", label: "Planner" },
-  { to: "/app/profile", icon: "PR", label: "Profile" },
+  { to: "/app", icon: "dashboard", label: "Dashboard" },
+  { to: "/app/upload", icon: "upload", label: "Upload PDF", badge: "NEW" },
+  { to: "/app/portfolio", icon: "portfolio", label: "Portfolio" },
+  { to: "/app/analysis", icon: "analysis", label: "Analysis" },
+  { to: "/app/chat", icon: "chat", label: "AI Mentor" },
+  { to: "/app/planner", icon: "planner", label: "Planner" },
+  { to: "/app/profile", icon: "profile", label: "Profile" },
 ];
+
+function NavIcon({ name }) {
+  const shared = {
+    width: 16,
+    height: 16,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.9,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": "true",
+  };
+
+  switch (name) {
+    case "dashboard":
+      return (
+        <svg {...shared}>
+          <rect x="3" y="3" width="8" height="8" rx="1.5" />
+          <rect x="13" y="3" width="8" height="5" rx="1.5" />
+          <rect x="13" y="10" width="8" height="11" rx="1.5" />
+          <rect x="3" y="13" width="8" height="8" rx="1.5" />
+        </svg>
+      );
+    case "upload":
+      return (
+        <svg {...shared}>
+          <path d="M12 16V4" />
+          <path d="M8 8l4-4 4 4" />
+          <path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
+        </svg>
+      );
+    case "portfolio":
+      return (
+        <svg {...shared}>
+          <path d="M3 7h18" />
+          <path d="M6 3h12v18H6z" />
+          <path d="M9 12h6" />
+          <path d="M9 16h4" />
+        </svg>
+      );
+    case "analysis":
+      return (
+        <svg {...shared}>
+          <path d="M4 20V10" />
+          <path d="M10 20V4" />
+          <path d="M16 20v-7" />
+          <path d="M22 20v-12" />
+        </svg>
+      );
+    case "chat":
+      return (
+        <svg {...shared}>
+          <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.7 8.7 0 0 1-3.2-.6L3 21l1.7-5.2a8.5 8.5 0 1 1 16.3-4.3z" />
+        </svg>
+      );
+    case "planner":
+      return (
+        <svg {...shared}>
+          <rect x="4" y="4" width="16" height="16" rx="2" />
+          <path d="M8 2v4M16 2v4M4 10h16" />
+          <path d="M8 14h3M8 17h6" />
+        </svg>
+      );
+    case "profile":
+      return (
+        <svg {...shared}>
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 20a8 8 0 0 1 16 0" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
 
 function Sidebar({ collapsed, isMobile, onNavigate }) {
   const { user, logout } = useAuth();
@@ -77,7 +152,19 @@ function Sidebar({ collapsed, isMobile, onNavigate }) {
               transition: "all 0.12s",
             })}
           >
-            <span style={{ fontSize: 12, width: collapsed ? "auto" : 18, textAlign: "center", flexShrink: 0 }}>{item.icon}</span>
+            <span
+              style={{
+                width: collapsed ? "auto" : 18,
+                minWidth: 16,
+                textAlign: "center",
+                flexShrink: 0,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <NavIcon name={item.icon} />
+            </span>
             {!collapsed && <span style={{ flex: 1 }}>{item.label}</span>}
             {!collapsed && item.badge && (
               <span style={{ background: `${T.green}22`, color: T.green, fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 6 }}>{item.badge}</span>
