@@ -18,13 +18,13 @@ const MODEL_LIBRARY = {
   // Standard workhorse for reasoning-heavy tasks
   flash25: "gemini-2.5-flash",
   // New high-efficiency model designed for scale
-  flashLite31: "gemini-3.1-flash-lite",
+  flashLite31: "gemini-2.5-flash-lite",
 };
 
 // Per-use assignment so all requested models are used.
 const MODELS = {
   pro: MODEL_LIBRARY.flash25,
-  flash: MODEL_LIBRARY.flashLite31,
+  flash: MODEL_LIBRARY.flash25,
   lite: MODEL_LIBRARY.flashLite25,
 };
 

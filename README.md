@@ -26,7 +26,7 @@ The backend uses multiple Gemini models by responsibility in `backend/services/g
 
 - `gemini-2.5-flash-lite`: quick insights, SIP recommendation
 - `gemini-2.5-flash`: full portfolio analysis (reasoning-heavy)
-- `gemini-3.1-flash-lite`: chat, statement parsing, XIRR/overlap/expense/tax JSON analyses
+- `gemini-2.5-flash`: chat, statement parsing, XIRR/overlap/expense/tax JSON analyses
 
 ## Project Structure
 
